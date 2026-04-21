@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Websocket chat</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="profile">
+      <div class="avatar"></div>
+      <h3>Chats</h3>
+    </div>
+
+    <div class="search">
+      <input placeholder="Search conversations..." />
+    </div>
+
+    <div class="chat-list">
+      <div class="chat-item active" data-user="John">
+        <div class="avatar"></div>
+        <div class="info">
+          <h4>John</h4>
+          <p>Let’s meet at 7?</p>
+        </div>
+      </div>
+
+      <div class="chat-item" data-user="Alice">
+        <div class="avatar"></div>
+        <div class="info">
+          <h4>Alice</h4>
+          <p>Haha that was funny 😂</p>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Chat Area -->
+  <main class="chat">
+
+    <div class="chat-header">
+      <div class="avatar small"></div>
+      <div>
+        <h3 id="chatName">John</h3>
+        <span class="status">online</span>
+      </div>
+    </div>
+
+    <div class="messages" id="messages"></div>
+
+    <div class="typing hidden" id="typing">
+      <span></span><span></span><span></span>
+    </div>
+
+    <div class="input-area">
+
+      <!-- Attachment Button -->
+      <div class="attach-wrapper">
+        <button class="attach-btn" id="attachBtn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-paperclip" viewBox="0 0 16 16">
+            <path d="M4.5 3a2.5 2.5 0 0 1 5 0v9a1.5 1.5 0 0 1-3 0V5a.5.5 0 0 1 1 0v7a.5.5 0 0 0 1 0V3a1.5 1.5 0 1 0-3 0v9a2.5 2.5 0 0 0 5 0V5a.5.5 0 0 1 1 0v7a3.5 3.5 0 1 1-7 0z"/>
+          </svg>
+        </button>
+
+        <!-- Attachment Menu -->
+        <div class="attach-menu hidden" id="attachMenu">
+          <div class="attach-item">📄 <span>Document</span></div>
+          <div class="attach-item">📷 <span>Camera</span></div>
+          <div class="attach-item">🖼 <span>Gallery</span></div>
+          <div class="attach-item">🎧 <span>Audio</span></div>
+          <div class="attach-item">📍 <span>Location</span></div>
+          <div class="attach-item">👤 <span>Contact</span></div>
+        </div>
+      </div>
+
+      <input id="input" placeholder="Type a message..." />
+
+      <button id="send">➤</button>
+
+    </div>
+
+    <input type="file" id="fileInput" hidden />
+    <input type="file" id="imageInput" accept="image/*" hidden />
+    <input type="file" id="audioInput" accept="audio/*" hidden />
+
+    <div class="preview-modal hidden" id="previewModal">
+      <div class="preview-content">
+
+        <span class="close" id="closePreview">✕</span>
+
+        <img id="previewImg" />
+
+        <canvas id="pdfCanvas" class="hidden"></canvas>
+
+        <input 
+          type="text" 
+          id="captionInput" 
+          placeholder="Add a caption..." 
+        />
+
+        <button id="sendImage">Send</button>
+
+      </div>
+    </div>
+
+    <div class="image-modal hidden" id="imageModal">
+      <span class="close" id="closeModal">✕</span>
+      <img id="modalImg" />
+    </div>
+  </main>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
