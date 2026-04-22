@@ -1,7 +1,7 @@
 const socket = io();
 
 const send = document.getElementById("send");
-const messages = document.getElementById("messages");
+const messages = document.querySelector(".messages");
 const typing = document.getElementById("typing");
 
 const input = document.getElementById("input");
@@ -25,23 +25,43 @@ const ctx = pdfCanvas.getContext("2d");
 let selectedFile = null;
 let selectedType = null; // "image" | "pdf" | "other"
 
+const sentTick = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-check" viewBox="0 0 16 16">
+  <path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425z"/>
+</svg>`;
+
+const receivedTick = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-check-all" viewBox="0 0 16 16">
+  <path d="M8.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L2.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093L8.95 4.992zm-.92 5.14.92.92a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 1 0-1.091-1.028L9.477 9.417l-.485-.486z"/>
+</svg>`;
+
 socket.on('server:message', (msg) => {
   typing.classList.add("hidden");
 
   const type = "received";
   if (msg.type === "text") {
-    addMessage(type, msg.createdAt, msg.createdAt, msg.content);
+    addMessage(type, msg.createdAt, msg.id, msg.content);
   }
 
   else if (msg.type === "image") {
-    addImageMessage(type, msg.createdAt, msg.src, msg.content)
+    addImageMessage(type, msg.createdAt, msg.id, msg.src, msg.content);
   }
   else if (msg.type === "pdf") {
-    addPDFMessage(type, msg.createdAt, msg.url, msg.fileName, msg.size, msg.content)
+    addPDFMessage(type, msg.createdAt, msg.id, msg.url, msg.fileName, msg.size, msg.content);
   }
 
   else if (msg.type === "file") {
-    addFileMessage(type, msg.createdAt, msg.fileName, msg.url, msg.content);
+    addFileMessage(type, msg.createdAt, msg.id, msg.fileName, msg.url, msg.content);
+  }
+
+  const el = document.querySelector(`[data-id="${msg.id}"]`);
+  if (!el) return;
+  const tick = el.querySelector(".tick")
+  tick.innerHTML = receivedTick;
+
+  socket.emit("message:delivered", { id: msg.id });
+
+  if (document.visibilityState === "visible") {
+    tick.classList.add("seen");
+    socket.emit("message:seen", { id: msg.id });
   }
 })
 
@@ -52,6 +72,20 @@ socket.on('server:typing', () => {
 socket.on('server:stopTyping', () => {
   typing.classList.add("hidden");
 })
+
+socket.on("message:delivered", ({ id }) => {
+  const el = document.querySelector(`[data-id="${id}"]`);
+  if (!el) return;
+  const tick = el.querySelector(".tick")
+  tick.innerHTML = receivedTick;
+});
+
+socket.on("message:seen", ({ id }) => {
+  const el = document.querySelector(`[data-id="${id}"]`);
+  if (!el) return;
+  const tick = el.querySelector(".tick")
+  tick.classList.add("seen");
+});
 
 document.addEventListener("click", (e) => {
   if (e.target.classList.contains("chat-image")) {
@@ -104,9 +138,9 @@ send.addEventListener("click", (e) => {
   if (message === "") {
     return;
   }
-  addMessage("sent", null, message);
+  const id = addMessage("sent", null, null, message);
   input.value = "";
-  emitMessage("text", message);
+  emitMessage("text", id, message);
 });
 
 input.addEventListener("input", (e) => {
@@ -124,20 +158,20 @@ sendImageBtn.addEventListener('click', () => {
 
   if (selectedType === "image") {
     const src = previewImg.src
-    addImageMessage("sent", src, caption);
-    emitMessage("image", caption, src)
+    const id = addImageMessage("sent", src, caption);
+    emitMessage("image", id, caption, src)
   }
 
   else if (selectedType === "pdf") {
     const url = URL.createObjectURL(selectedFile);
-    addPDFMessage("sent", url, selectedFile.name, selectedFile.size, null,caption);
-    emitMessage("pdf", caption, null, selectedFile.name, url, selectedFile.size);
+    const id = addPDFMessage("sent", url, selectedFile.name, selectedFile.size, null,caption);
+    emitMessage("pdf", id, caption, null, selectedFile.name, url, selectedFile.size);
   }
 
   else {
     const url = URL.createObjectURL(selectedFile);
-    addFileMessage("sent", selectedFile.name, url, caption);
-    emitMessage("file", caption, null, selectedFile.name, url);
+    const id = addFileMessage("sent", selectedFile.name, url, caption);
+    emitMessage("file", id, caption, null, selectedFile.name, url);
   }
   resetPreview();
 });
@@ -154,17 +188,25 @@ closeModal.addEventListener("click", () => {
 });
 // modal.addEventListener('click', () => modal.classList.add("hidden"));
 
-function addMessage(type, timestamp=null, text) {
+function addMessage(type, timestamp=null, id=null, text) {
   const div = document.createElement("div");
   div.className = `message ${type}`;
 
   div.innerHTML = `
     ${text}
-    <div class="meta">${time(timestamp)}</div>
+    <div class="meta">
+      <span>${time(timestamp)}</span>
+      <span class="tick">${sentTick}</span>
+    </div>
   `;
+
+  id = id ?? createId();
+  div.dataset.id = id;
 
   messages.appendChild(div);
   messages.scrollTop = messages.scrollHeight;
+
+  return id;
 }
 
 function handleFile(e) {
@@ -206,21 +248,29 @@ function handleFile(e) {
   }
 }
 
-function addImageMessage(type, timestamp=null, src, caption) {
+function addImageMessage(type, timestamp=null, id, src, caption) {
   const div = document.createElement("div");
   div.className = `message ${type}`;
 
   div.innerHTML = `
     <img src="${src}" class="chat-image" />
     ${caption.length > 0 ? `<p class="caption">${caption}</p>` : ""}
-    <div class="meta">${time(timestamp)}</div>
+    <div class="meta">
+      <span>${time(timestamp)}</span>
+      <span class="tick">${sentTick}</span>
+    </div>
   `;
+
+  id = id ?? createId();
+  div.id = id;
 
   messages.appendChild(div);
   messages.scrollTop = messages.scrollHeight;
+
+  return id;
 }
 
-function addPDFMessage(type, datetime=null, url, fileName, fileSize, caption=null) {
+function addPDFMessage(type, datetime=null, id, url, fileName, fileSize, caption=null) {
 
   const div = document.createElement("div");
   div.className = `message ${type}`;
@@ -234,14 +284,22 @@ function addPDFMessage(type, datetime=null, url, fileName, fileSize, caption=nul
       </div>
     </a>
     ${caption.length > 0 ? `<p class="caption">${caption}</p>` : ""}
-    <div class="meta">${time(datetime)}</div>
+    <div class="meta">
+      <span>${time(datetime)}</span>
+      <span class="tick">${sentTick}</span>
+    </div>
   `;
+
+  id = id ?? createId();
+  div.id = id;
 
   messages.appendChild(div);
   messages.scrollTop = messages.scrollHeight;
+
+  return id;
 }
 
-function addFileMessage(type, datetime=null, fileName, url, caption) {
+function addFileMessage(type, datetime=null, id, fileName, url, caption) {
   const div = document.createElement("div");
   div.className = `message ${type}`;
 
@@ -250,11 +308,19 @@ function addFileMessage(type, datetime=null, fileName, url, caption) {
       📄 ${fileName}
     </a>
     ${caption.length > 0 ? `<p class="caption">${caption}</p>` : ""}
-    <div class="meta">${time(datetime)}</div>
+    <div class="meta">
+      <span>${time(datetime)}</span>
+      <span class="tick">${sentTick}</span>  
+    </div>
   `;
+
+  id = id ?? createId();
+  div.id = id;
 
   messages.appendChild(div);
   messages.scrollTop = messages.scrollHeight;
+
+  return id;
 }
 
 function time(datetime=null) {
@@ -299,9 +365,9 @@ function formatSize(bytes) {
   return (bytes / (1024 * 1024)).toFixed(1) + " MB";
 }
 
-function emitMessage(type, content=null, src=null, fileName=null, url=null, size=null) {
+function emitMessage(type, id, content=null, src=null, fileName=null, url=null, size=null) {
   const data = {
-    id: Date.now(),
+    id,
     type,
     content,
     src,
@@ -313,4 +379,9 @@ function emitMessage(type, content=null, src=null, fileName=null, url=null, size
   }
 
   socket.emit('user:message', data);
+}
+
+function createId() {
+
+  return Date.now();
 }

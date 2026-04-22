@@ -28,6 +28,14 @@ async function main() {
     socket.on("user:stopTyping", () => {
       socket.broadcast.emit('server:stopTyping');
     })
+
+    socket.on("message:delivered", ({ id }) => {
+      socket.broadcast.emit("message:delivered", { id });
+    });
+
+    socket.on("message:seen",  ({id}) => {
+      socket.broadcast.emit("message:seen", {id});
+    });
   })
 
   server.listen(9000, () => {

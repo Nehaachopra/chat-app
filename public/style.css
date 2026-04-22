@@ -146,6 +146,10 @@ body {
   border-bottom-right-radius: 4px;
 }
 
+.sent .meta {
+  justify-content: right;
+}
+
 .received {
   align-self: flex-start;
   background: rgba(255,255,255,0.05);
@@ -153,11 +157,20 @@ body {
   border-bottom-left-radius: 4px;
 }
 
+.received .meta {
+  justify-content: left;
+}
+
+
 .meta {
   font-size: 10px;
   opacity: 0.6;
   margin-top: 4px;
   text-align: right;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 15px;
 }
 
 /* Input */
@@ -444,4 +457,7 @@ body {
 .file-size {
   font-size: 11px;
   color: #94a3b8;
+}
+.seen {
+  color: yellow;
 }
